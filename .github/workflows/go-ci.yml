@@ -1,0 +1,92 @@
+name: go-ci
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/go-ci.yml"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "revive.toml"
+      - "cmd/**/*.go"
+      - "games/**/*.go"
+      - "e2e/**/*.go"
+      - "testdata/ai/dungeon/**"
+      - "docs/specs/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/go-ci.yml"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "revive.toml"
+      - "cmd/**/*.go"
+      - "games/**/*.go"
+      - "e2e/**/*.go"
+      - "testdata/ai/dungeon/**"
+      - "docs/specs/**"
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Checkout ai-arena
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          repository: yoskeoka/ai-arena
+          path: ai-arena
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Go module and build state
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            /home/runner/go/pkg/mod
+            /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile') }}-test
+          restore-keys: |
+            ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile') }}-
+            ${{ runner.os }}-go-
+
+      - name: Run tests
+        run: make GOPATH=/home/runner/go GOMODCACHE=/home/runner/go/pkg/mod GOCACHE=/home/runner/.cache/go-build test
+
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Checkout ai-arena
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          repository: yoskeoka/ai-arena
+          path: ai-arena
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Go module and build state
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            /home/runner/go/pkg/mod
+            /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile') }}-lint
+          restore-keys: |
+            ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile') }}-
+            ${{ runner.os }}-go-
+
+      - name: Run lint
+        run: make GOPATH=/home/runner/go GOMODCACHE=/home/runner/go/pkg/mod GOCACHE=/home/runner/.cache/go-build lint
