@@ -1,0 +1,7 @@
+ignoreGeneratedHeader = true
+severity = "warning"
+
+[rule.exported]
+arguments = ["disable-stuttering-check"]
+
+[rule.package-comments]
