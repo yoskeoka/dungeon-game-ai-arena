@@ -15,7 +15,7 @@ import (
 	"github.com/yoskeoka/dungeon-game-ai-arena/games/dungeon"
 )
 
-const aiArenaVersion = "v0.1.0"
+const defaultAIArenaVersion = "v0.1.0"
 const seededRNGSeed = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
 type resultSummaryArtifact struct {
@@ -132,7 +132,7 @@ func runSeededDungeonMatch(t *testing.T, matchID string) resultSummaryArtifact {
 
 	outputDir := t.TempDir()
 	cmd := exec.CommandContext(testContext(t),
-		"go", "run", "github.com/yoskeoka/ai-arena/cmd/arena-runner@"+aiArenaVersion,
+		"go", "run", "github.com/yoskeoka/ai-arena/cmd/arena-runner@"+aiArenaVersion(),
 		"--game", dungeon.GameID,
 		"--game-version", dungeon.GameVersion,
 		"--ruleset", dungeon.RulesetSeededMazeV1,
@@ -144,8 +144,7 @@ func runSeededDungeonMatch(t *testing.T, matchID string) resultSummaryArtifact {
 		"--player", "p2=./testdata/ai/dungeon/dungeon-bot-local-seeded",
 	)
 	cmd.Dir = repoRoot(t)
-	cmd.Env = append([]string(nil), os.Environ()...)
-	cmd.Env = append(cmd.Env, "GOWORK=off")
+	cmd.Env = commandEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("run arena-runner: %v\n%s", err, output)
@@ -248,6 +247,24 @@ func mustIndentedJSON(v any) []byte {
 		panic(err)
 	}
 	return append(data, '\n')
+}
+
+func aiArenaVersion() string {
+	if v := os.Getenv("AI_ARENA_VERSION"); v != "" {
+		return v
+	}
+	return defaultAIArenaVersion
+}
+
+func commandEnv() []string {
+	base := os.Environ()
+	env := make([]string, 0, len(base)+1)
+	for _, entry := range base {
+		if !strings.HasPrefix(entry, "GOWORK=") {
+			env = append(env, entry)
+		}
+	}
+	return append(env, "GOWORK=off")
 }
 
 func repoRoot(t *testing.T) string {
