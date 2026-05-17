@@ -9,7 +9,7 @@ tool (
 	honnef.co/go/tools/cmd/staticcheck
 )
 
-require github.com/yoskeoka/ai-arena v0.0.0-20260517111844-8cb448251b90
+require github.com/yoskeoka/ai-arena v0.1.0
 
 require (
 	cloud.google.com/go v0.121.2 // indirect

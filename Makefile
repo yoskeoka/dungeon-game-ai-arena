@@ -1,5 +1,6 @@
 GO ?= go
 CACHE_ROOT ?= /tmp/dungeon-game-ai-arena-go
+AI_ARENA_VERSION ?= v0.1.0
 DUNGEON_RULESET ?= seeded-maze-v1
 DUNGEON_RNG_SEED ?= 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
 GOPATH ?= $(CACHE_ROOT)/go
@@ -14,7 +15,7 @@ GOFILES = $(shell find ./cmd ./games ./e2e ./testdata -name '*.go' -print 2>/dev
 
 test:
 	mkdir -p "$(GOPATH)" "$(GOCACHE)" "$(GOMODCACHE)" "$(HOME_DIR)" "$(XDG_CACHE_HOME)"
-	$(GO_ENV) $(GO) test ./...
+	$(GO_ENV) GOWORK=off $(GO) test ./...
 
 fmt:
 	mkdir -p "$(GOPATH)" "$(GOCACHE)" "$(GOMODCACHE)" "$(HOME_DIR)" "$(XDG_CACHE_HOME)"
@@ -34,7 +35,7 @@ lint-goimports:
 
 lint-vet:
 	mkdir -p "$(GOPATH)" "$(GOCACHE)" "$(GOMODCACHE)" "$(HOME_DIR)" "$(XDG_CACHE_HOME)"
-	$(GO_ENV) $(GO) vet ./...
+	$(GO_ENV) GOWORK=off $(GO) vet ./...
 
 lint-staticcheck:
 	mkdir -p "$(GOPATH)" "$(GOCACHE)" "$(GOMODCACHE)" "$(HOME_DIR)" "$(XDG_CACHE_HOME)"
@@ -52,7 +53,7 @@ run-dungeon-local:
 	mkdir -p "$(GOPATH)" "$(GOCACHE)" "$(GOMODCACHE)" "$(HOME_DIR)" "$(XDG_CACHE_HOME)"
 	output_dir="$$(mktemp -d /tmp/dungeon-game-ai-arena-run-XXXXXX)"; \
 	echo "artifact dir: $$output_dir/dungeon-local"; \
-	$(GO_ENV) ./tools/with-local-ai-arena.sh $(GO) run github.com/yoskeoka/ai-arena/cmd/arena-runner \
+	$(GO_ENV) GOWORK=off $(GO) run github.com/yoskeoka/ai-arena/cmd/arena-runner@$(AI_ARENA_VERSION) \
 		--game dungeon \
 		--game-version 1.0.0 \
 		--ruleset "$(DUNGEON_RULESET)" \

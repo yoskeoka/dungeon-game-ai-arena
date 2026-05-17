@@ -6,11 +6,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/yoskeoka/dungeon-game-ai-arena/games/dungeon"
 )
 
+const aiArenaVersion = "v0.1.0"
 const seededRNGSeed = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
 type resultSummaryArtifact struct {
@@ -82,11 +87,14 @@ func TestDungeonLocalRunCompletes(t *testing.T) {
 	if summary.Status != "completed" {
 		t.Fatalf("status = %q, want completed", summary.Status)
 	}
-	if summary.GameID != "dungeon" {
-		t.Fatalf("game_id = %q, want dungeon", summary.GameID)
+	if summary.GameID != dungeon.GameID {
+		t.Fatalf("game_id = %q, want %q", summary.GameID, dungeon.GameID)
 	}
-	if summary.RulesetVersion != "seeded-maze-v1" {
-		t.Fatalf("ruleset = %q, want seeded-maze-v1", summary.RulesetVersion)
+	if summary.GameVersion != dungeon.GameVersion {
+		t.Fatalf("game_version = %q, want %q", summary.GameVersion, dungeon.GameVersion)
+	}
+	if summary.RulesetVersion != dungeon.RulesetSeededMazeV1 {
+		t.Fatalf("ruleset = %q, want %q", summary.RulesetVersion, dungeon.RulesetSeededMazeV1)
 	}
 	if summary.Dungeon == nil {
 		t.Fatal("summary missing dungeon payload")
@@ -97,7 +105,10 @@ func TestDungeonSeededDeterministicGoldenParity(t *testing.T) {
 	first := normalizeDungeonResultPayload(t, runSeededDungeonMatch(t, "dungeon-seeded-deterministic-a"))
 	second := normalizeDungeonResultPayload(t, runSeededDungeonMatch(t, "dungeon-seeded-deterministic-b"))
 
-	assertCanonicalJSONEqual(t, first, second, "normalized result mismatch across reruns")
+	if !reflect.DeepEqual(first, second) {
+		t.Fatalf("normalized result mismatch across reruns\nfirst:\n%s\nsecond:\n%s",
+			mustIndentedJSON(first), mustIndentedJSON(second))
+	}
 	assertGoldenJSON(t, filepath.Join(repoRoot(t), "e2e", "golden", "normalized-dungeon-result.json"), first)
 }
 
@@ -121,10 +132,10 @@ func runSeededDungeonMatch(t *testing.T, matchID string) resultSummaryArtifact {
 
 	outputDir := t.TempDir()
 	cmd := exec.CommandContext(testContext(t),
-		"go", "run", "github.com/yoskeoka/ai-arena/cmd/arena-runner",
-		"--game", "dungeon",
-		"--game-version", "1.0.0",
-		"--ruleset", "seeded-maze-v1",
+		"go", "run", "github.com/yoskeoka/ai-arena/cmd/arena-runner@"+aiArenaVersion,
+		"--game", dungeon.GameID,
+		"--game-version", dungeon.GameVersion,
+		"--ruleset", dungeon.RulesetSeededMazeV1,
 		"--rng-seed", seededRNGSeed,
 		"--match-id", matchID,
 		"--output-dir", outputDir,
@@ -133,7 +144,8 @@ func runSeededDungeonMatch(t *testing.T, matchID string) resultSummaryArtifact {
 		"--player", "p2=./testdata/ai/dungeon/dungeon-bot-local-seeded",
 	)
 	cmd.Dir = repoRoot(t)
-	cmd.Env = childEnvWithLocalWorkspace(t)
+	cmd.Env = append([]string(nil), os.Environ()...)
+	cmd.Env = append(cmd.Env, "GOWORK=off")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("run arena-runner: %v\n%s", err, output)
@@ -160,6 +172,9 @@ func normalizeDungeonResultPayload(t *testing.T, summary resultSummaryArtifact) 
 
 	if summary.Dungeon == nil {
 		t.Fatal("summary missing dungeon payload")
+	}
+	if summary.Turn != summary.Dungeon.Turn {
+		t.Fatalf("summary turn mismatch: top-level=%d dungeon=%d", summary.Turn, summary.Dungeon.Turn)
 	}
 
 	got := normalizedDungeonResult{
@@ -192,20 +207,16 @@ func normalizeDungeonResultPayload(t *testing.T, summary resultSummaryArtifact) 
 			Points: chest.Points,
 		})
 	}
-	sortRemainingChests(got.RemainingChests)
-	return got
-}
-
-func sortRemainingChests(chests []normalizedChest) {
-	for i := 0; i < len(chests); i++ {
-		for j := i + 1; j < len(chests); j++ {
-			if chests[j].X < chests[i].X ||
-				(chests[j].X == chests[i].X && chests[j].Y < chests[i].Y) ||
-				(chests[j].X == chests[i].X && chests[j].Y == chests[i].Y && chests[j].Points < chests[i].Points) {
-				chests[i], chests[j] = chests[j], chests[i]
-			}
+	sort.Slice(got.RemainingChests, func(i, j int) bool {
+		if got.RemainingChests[i].X != got.RemainingChests[j].X {
+			return got.RemainingChests[i].X < got.RemainingChests[j].X
 		}
-	}
+		if got.RemainingChests[i].Y != got.RemainingChests[j].Y {
+			return got.RemainingChests[i].Y < got.RemainingChests[j].Y
+		}
+		return got.RemainingChests[i].Points < got.RemainingChests[j].Points
+	})
+	return got
 }
 
 func finishedTurnValue(v *int) int {
@@ -226,16 +237,8 @@ func assertGoldenJSON(t *testing.T, goldenPath string, got any) {
 	if err := json.Unmarshal(wantData, &want); err != nil {
 		t.Fatalf("decode golden %s: %v", goldenPath, err)
 	}
-	assertCanonicalJSONEqual(t, want, got, "golden mismatch for "+goldenPath)
-}
-
-func assertCanonicalJSONEqual(t *testing.T, left, right any, message string) {
-	t.Helper()
-
-	leftJSON := mustIndentedJSON(left)
-	rightJSON := mustIndentedJSON(right)
-	if string(leftJSON) != string(rightJSON) {
-		t.Fatalf("%s\nleft:\n%s\nright:\n%s", message, leftJSON, rightJSON)
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("golden mismatch for %s\nwant:\n%s\ngot:\n%s", goldenPath, mustIndentedJSON(want), mustIndentedJSON(got))
 	}
 }
 
@@ -264,39 +267,4 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	t.Cleanup(cancel)
 	return ctx
-}
-
-func childEnvWithLocalWorkspace(t *testing.T) []string {
-	t.Helper()
-
-	env := append([]string(nil), os.Environ()...)
-	repo := repoRoot(t)
-	if aiArenaDir := detectAIArenaDir(repo); aiArenaDir != "" {
-		workDir := t.TempDir()
-		workFile := filepath.Join(workDir, "go.work")
-		data := "go 1.26\n\nuse (\n  " + repo + "\n  " + aiArenaDir + "\n)\n"
-		if err := os.WriteFile(workFile, []byte(data), 0o644); err != nil {
-			t.Fatalf("write go.work: %v", err)
-		}
-		env = append(env, "GOWORK="+workFile)
-	}
-	return env
-}
-
-func detectAIArenaDir(repo string) string {
-	candidates := []string{}
-	if env := strings.TrimSpace(os.Getenv("AI_ARENA_DIR")); env != "" {
-		candidates = append(candidates, env)
-	}
-	candidates = append(candidates,
-		filepath.Join(repo, "ai-arena"),
-		filepath.Join(repo, "..", "ai-arena"),
-		filepath.Join(repo, "..", "..", "ai-arena"),
-	)
-	for _, candidate := range candidates {
-		if _, err := os.Stat(filepath.Join(candidate, "go.mod")); err == nil {
-			return candidate
-		}
-	}
-	return ""
 }
