@@ -110,8 +110,8 @@ github.com/wk8/go-ordered-map/v2 v2.1.8 h1:5h/BUHu93oj4gIdvHHHGsScSTMijfx5PeYkE/
 github.com/wk8/go-ordered-map/v2 v2.1.8/go.mod h1:5nJHM5DyteebpVlHnWMV0rPz6Zp7+xBAnxjb1X5vnTw=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e/go.mod h1:RbqR21r5mrJuqunuUZ/Dhy/avygyECGrLceyNeo4LiM=
-github.com/yoskeoka/ai-arena v0.0.0-20260517111844-8cb448251b90 h1:uz/hfMKbRBQH2rEB/cajLm+LMmqnvisx+QmC7Q+4vEg=
-github.com/yoskeoka/ai-arena v0.0.0-20260517111844-8cb448251b90/go.mod h1:AQWyIDqGnwRryYlXCpVuafYe1caQxuUyUMj7UJG2BWM=
+github.com/yoskeoka/ai-arena v0.1.0 h1:67mIX0W3532QUGnluMuPjsNnR3EkbSc24v9XN/OgJso=
+github.com/yoskeoka/ai-arena v0.1.0/go.mod h1:AQWyIDqGnwRryYlXCpVuafYe1caQxuUyUMj7UJG2BWM=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 h1:F7Jx+6hwnZ41NSFTO5q4LYDtJRXBf2PD0rNBkeB/lus=
