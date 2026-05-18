@@ -1,0 +1,54 @@
+name: wasm-verification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wasm-verification.yml"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "cmd/**/*.go"
+      - "games/**/*.go"
+      - "e2e/**/*.go"
+      - "testdata/ai/dungeon/**"
+      - "docs/specs/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/wasm-verification.yml"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "cmd/**/*.go"
+      - "games/**/*.go"
+      - "e2e/**/*.go"
+      - "testdata/ai/dungeon/**"
+      - "docs/specs/**"
+  workflow_dispatch:
+
+jobs:
+  go-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Go module and build state
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            /home/runner/go/pkg/mod
+            /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile', 'e2e/**/*.go', 'testdata/ai/dungeon/**') }}-wasm-go
+          restore-keys: |
+            ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Makefile', 'e2e/**/*.go', 'testdata/ai/dungeon/**') }}-
+            ${{ runner.os }}-go-
+
+      - name: Run Go-WASM verification
+        run: make GOPATH=/home/runner/go GOMODCACHE=/home/runner/go/pkg/mod GOCACHE=/home/runner/.cache/go-build test-wasm-go
