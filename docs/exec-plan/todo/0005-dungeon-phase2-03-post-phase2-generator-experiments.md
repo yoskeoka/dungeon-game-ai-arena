@@ -68,7 +68,8 @@ spec / helper / benchmark 的 verification の追加。
 
 ## Verification
 
-- `go test ./games/dungeon/...`
+- `go test ./games/dungeon/... ./cmd/dungeon-map-helper/...`
+- `go test ./...`
 - `go run ./cmd/dungeon-map-helper --ruleset <experimental-ruleset> --rng-seed <seed>`
 - 必要なら比較結果を `docs/issues/` または follow-up plan に記録する
 
