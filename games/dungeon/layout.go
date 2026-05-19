@@ -174,6 +174,9 @@ func (r dungeonRoom) overlapsWithPadding(other dungeonRoom, padding int) bool {
 }
 
 func generateRogueRoomsLayout(rng *deterministicRand, width, height int) ([]string, error) {
+	if width < 8 || height < 8 {
+		return nil, fmt.Errorf("dungeon: rogue rooms layout requires width and height >= 8, got %dx%d", width, height)
+	}
 	grid := make([][]byte, height)
 	for y := range grid {
 		grid[y] = make([]byte, width)

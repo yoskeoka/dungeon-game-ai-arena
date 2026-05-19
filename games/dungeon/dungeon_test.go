@@ -155,6 +155,19 @@ func TestGeneratedRulesetsUseWallBoundedConnectedLayouts(t *testing.T) {
 	}
 }
 
+func TestGenerateRogueRoomsLayoutRejectsTooSmallDimensions(t *testing.T) {
+	rng, err := newSeededRand(testSeedAlpha)
+	if err != nil {
+		t.Fatalf("newSeededRand: %v", err)
+	}
+	if _, err := generateRogueRoomsLayout(rng, 7, 15); err == nil {
+		t.Fatal("expected width validation error")
+	}
+	if _, err := generateRogueRoomsLayout(rng, 19, 7); err == nil {
+		t.Fatal("expected height validation error")
+	}
+}
+
 func TestNewGeneratesSeedWhenOmitted(t *testing.T) {
 	match, err := New(Config{
 		GameVersion: GameVersion,
@@ -495,8 +508,19 @@ func TestCurrentVisibleStateClampsTerminalTurn(t *testing.T) {
 
 func assertWallBoundary(t *testing.T, ruleset string, tiles []string) {
 	t.Helper()
+	if len(tiles) == 0 {
+		t.Fatalf("%s produced empty tile rows", ruleset)
+	}
+	if len(tiles[0]) == 0 {
+		t.Fatalf("%s produced an empty first row", ruleset)
+	}
 	lastRow := len(tiles) - 1
 	lastCol := len(tiles[0]) - 1
+	for y, row := range tiles {
+		if len(row) != lastCol+1 {
+			t.Fatalf("%s produced jagged row %d: got width %d, want %d", ruleset, y, len(row), lastCol+1)
+		}
+	}
 	for x := 0; x <= lastCol; x++ {
 		if tiles[0][x] != '#' || tiles[lastRow][x] != '#' {
 			t.Fatalf("%s has non-wall boundary row", ruleset)

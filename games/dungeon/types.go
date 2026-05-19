@@ -30,7 +30,7 @@ const (
 var (
 	generatedGoalBonuses = []int{42, 28, 14, 7}
 	generatedChestPoints = []int{24, 18, 12}
-	seededMazeMaxTurns   = 72
+	seededMazeMaxTurns   = 120
 	rogueRoomsMaxTurns   = 72
 )
 

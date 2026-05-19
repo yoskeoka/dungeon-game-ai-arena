@@ -1,7 +1,7 @@
 {
   "map_id": "seeded-maze-v1",
-  "turn": 72,
-  "max_turns": 72,
+  "turn": 87,
+  "max_turns": 120,
   "placements": [
     {
       "player_id": "p2",
@@ -16,18 +16,18 @@
     {
       "player_id": "p2",
       "place": 1,
-      "score": 42,
-      "goal_bonus": 0,
+      "score": 70,
+      "goal_bonus": 28,
       "chest_points": 42,
-      "finished_turn": -1
+      "finished_turn": 87
     },
     {
       "player_id": "p1",
       "place": 2,
-      "score": 0,
-      "goal_bonus": 0,
+      "score": 42,
+      "goal_bonus": 42,
       "chest_points": 0,
-      "finished_turn": -1
+      "finished_turn": 80
     }
   ],
   "remaining_chests": [
