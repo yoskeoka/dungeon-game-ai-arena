@@ -3,18 +3,29 @@
 
 ## Objective
 
-Phase 2 の generated map line を、現行の small map baseline
+Phase 2 の generated map line を、現行の legacy small-map baseline
 `seeded-maze-v1` 15x15 / `rogue-rooms-v1` 19x15 から、
-将来の large map default 候補へ移行するための比較・計測・基準化を先に完了する。
+将来の large-map line へ移行するための比較・計測・基準化を先に完了する。
 
 この plan では、以下を成立させる。
 
 - current small map ruleset を「今すぐ消す対象」ではなく比較基準として固定する
 - `100x150` 級を含む複数候補サイズを同じ観点で比較できる
-- gameplay 向け large default 候補と、e2e / CI 向け中間サイズを別 tier で扱う
+- gameplay default tier 向け large-map candidate と、CI/e2e tier 向け中間サイズを別 tier で扱う
 - turn budget、bot exploration capability、helper UX、deterministic verification、
   CI/runtime cost を ruleset promotion 前に数値で評価できる
-- large map default 切替の受け入れ条件を、後続 plan がそのまま実行できる形で固定する
+- large-map line 切替の受け入れ条件を、後続 plan がそのまま実行できる形で固定する
+
+## Terminology
+
+- `legacy small-map baseline`
+  - 現行 `seeded-maze-v1` 15x15 / `rogue-rooms-v1` 19x15 を指す比較基準
+- `large-map line`
+  - 後続で default 候補として昇格させる generated ruleset line を指す
+- `gameplay default tier`
+  - 実際のゲームプレイ default 候補を比較する tier を指す
+- `CI/e2e tier`
+  - deterministic golden と runtime cost を抑えて継続検証する tier を指す
 
 ## Dependencies
 
@@ -22,12 +33,12 @@ Phase 2 の generated map line を、現行の small map baseline
 
 ## Scope
 
-- `seeded-maze` / `rogue-rooms` の large-map 対応に必要な比較軸と acceptance criteria の定義
+- `seeded-maze` / `rogue-rooms` の large-map line 対応に必要な比較軸と acceptance criteria の定義
 - size candidate tier の明文化
-  - small baseline: 現行 `15x15` / `19x15`
-  - CI / e2e candidate: `40x40` から `50x50` 級
-  - gameplay candidate: `80x120` 級、`100x150` 級を含む large map
-- ruleset / helper / e2e が large candidate を比較できる足場の追加
+  - legacy small-map baseline: 現行 `15x15` / `19x15`
+  - CI/e2e tier candidate: `40x40` から `50x50` 級
+  - gameplay default tier candidate: `80x120` 級、`100x150` 級を含む large-map candidate
+- ruleset / helper / e2e が large-map candidate を比較できる足場の追加
 - bot exploration capability と turn budget の比較計測
 - deterministic golden と CI/runtime cost の tiered verification 方針の固定
 
@@ -49,24 +60,24 @@ Phase 2 の generated map line を、現行の small map baseline
 - `games/dungeon/dungeon_test.go`
   - size candidate ごとの deterministic / connectivity / placement / path-length regression を追加する
 - `games/dungeon/botlogic/*.go` と関連 test
-  - large map 比較に必要な探索能力指標を追加し、既存 bot が stall せず比較可能かを検証できるようにする
+  - large-map candidate 比較に必要な探索能力指標を追加し、既存 bot が stall せず比較可能かを検証できるようにする
 - `cmd/dungeon-map-helper/main.go`
   - size candidate 比較、summary-only 出力、route 詳細の抑制、seed matrix 比較など
-    large map 前提の確認 UX を追加する
+    large-map line 前提の確認 UX を追加する
 - `e2e/dungeon_parity_test.go` と `e2e/dungeon_go_wasm_e2e_test.go`
   - CI / e2e tier を `40x40` から `50x50` 級で比較できる前提を追加する
 
 ## Spec Changes
 
 - `docs/specs/dungeon-map-generation.md`
-  - large-map 移行の目的
-  - `seeded-maze-v1` / `rogue-rooms-v1` を small baseline として残す理由
+  - large-map line 移行の目的
+  - `seeded-maze-v1` / `rogue-rooms-v1` を legacy small-map baseline として残す理由
   - size candidate tier と比較観点
   - turn budget / helper / bot / deterministic verification の扱い
   を追記する
 - `docs/specs/dungeon-large-map-rollout.md` を追加し、以下を固定する
   - candidate size 一覧と比較順序
-  - `100x150` 級を含む gameplay candidate と `40x40` から `50x50` 級 CI candidate の分離
+  - `100x150` 級を含む gameplay default tier candidate と `40x40` から `50x50` 級 CI/e2e tier candidate の分離
   - promotion criteria
   - default 切替前に満たす verification baseline
 - 必要なら `docs/specs/dungeon-external-sdk-consumption.md` に、
@@ -74,16 +85,16 @@ Phase 2 の generated map line を、現行の small map baseline
 
 ## Design Decisions
 
-- `seeded-maze-v1` / `rogue-rooms-v1` は small-map baseline として残し、
-  large candidate は別 ruleset version または別 candidate namespace で比較する
-- large gameplay default 候補と CI/e2e canonical size は分けて扱う
+- `seeded-maze-v1` / `rogue-rooms-v1` は legacy small-map baseline として残し、
+  large-map line candidate は別 ruleset version または別 candidate namespace で比較する
+- gameplay default tier と CI/e2e canonical tier は分けて扱う
 - `100x150` 級は有力候補として比較対象に入れるが、
   turn budget / bot / helper / CI cost を満たすまでは採用決定としない
 - helper と test は「巨大 map を全部出す」よりも、summary と比較可能性を優先する
 
 ## Sub-tasks
 
-- [ ] `seeded-maze` / `rogue-rooms` の large-map 移行目的と small baseline 維持方針を spec に固定する
+- [ ] `seeded-maze` / `rogue-rooms` の large-map line 移行目的と legacy small-map baseline 維持方針を spec に固定する
 - [ ] [parallel] `40x40`、`50x50`、`80x120` 級、`100x150` 級の比較観点を定義する
 - [ ] [parallel] turn budget、bot exploration capability、helper UX、deterministic verification、
       CI/runtime cost の acceptance criteria を定義する
