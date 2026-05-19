@@ -1,6 +1,9 @@
 package dungeon
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 const (
 	testSeedAlpha = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
@@ -8,109 +11,160 @@ const (
 )
 
 func TestSeededMazeGenerationIsDeterministic(t *testing.T) {
-	cfg := Config{
-		GameVersion: GameVersion,
-		Ruleset:     RulesetSeededMazeV1,
-		PlayerIDs:   []string{"p1", "p2"},
-		RNGSeed:     testSeedAlpha,
-	}
-	first, err := New(cfg)
-	if err != nil {
-		t.Fatalf("first New: %v", err)
-	}
-	second, err := New(cfg)
-	if err != nil {
-		t.Fatalf("second New: %v", err)
-	}
-	if !equalStringSlices(first.Layout().Tiles, second.Layout().Tiles) {
-		t.Fatal("tiles differ for same seed")
-	}
-	if !equalPositions(first.Layout().SpawnPoints, second.Layout().SpawnPoints) {
-		t.Fatal("spawn points differ for same seed")
-	}
-	if first.Layout().Goal != second.Layout().Goal {
-		t.Fatal("goal differs for same seed")
-	}
-	if !equalChests(first.Layout().InitialChests, second.Layout().InitialChests) {
-		t.Fatal("initial chests differ for same seed")
+	for _, ruleset := range []string{RulesetSeededMazeV1, RulesetRogueRoomsV1} {
+		cfg := Config{
+			GameVersion: GameVersion,
+			Ruleset:     ruleset,
+			PlayerIDs:   []string{"p1", "p2"},
+			RNGSeed:     testSeedAlpha,
+		}
+		first, err := New(cfg)
+		if err != nil {
+			t.Fatalf("%s first New: %v", ruleset, err)
+		}
+		second, err := New(cfg)
+		if err != nil {
+			t.Fatalf("%s second New: %v", ruleset, err)
+		}
+		if !equalStringSlices(first.Layout().Tiles, second.Layout().Tiles) {
+			t.Fatalf("%s tiles differ for same seed", ruleset)
+		}
+		if !equalPositions(first.Layout().SpawnPoints, second.Layout().SpawnPoints) {
+			t.Fatalf("%s spawn points differ for same seed", ruleset)
+		}
+		if first.Layout().Goal != second.Layout().Goal {
+			t.Fatalf("%s goal differs for same seed", ruleset)
+		}
+		if !equalChests(first.Layout().InitialChests, second.Layout().InitialChests) {
+			t.Fatalf("%s initial chests differ for same seed", ruleset)
+		}
 	}
 }
 
 func TestSeededMazeGenerationVariesAcrossSeeds(t *testing.T) {
-	first, err := New(Config{
-		GameVersion: GameVersion,
-		Ruleset:     RulesetSeededMazeV1,
-		PlayerIDs:   []string{"p1", "p2"},
-		RNGSeed:     testSeedAlpha,
-	})
-	if err != nil {
-		t.Fatalf("New alpha: %v", err)
-	}
-	second, err := New(Config{
-		GameVersion: GameVersion,
-		Ruleset:     RulesetSeededMazeV1,
-		PlayerIDs:   []string{"p1", "p2"},
-		RNGSeed:     testSeedBeta,
-	})
-	if err != nil {
-		t.Fatalf("New beta: %v", err)
-	}
-	sameTiles := equalStringSlices(first.Layout().Tiles, second.Layout().Tiles)
-	sameGoal := first.Layout().Goal == second.Layout().Goal
-	sameChests := equalChests(first.Layout().InitialChests, second.Layout().InitialChests)
-	if sameTiles && sameGoal && sameChests {
-		t.Fatal("expected different generated state for different seeds")
+	for _, ruleset := range []string{RulesetSeededMazeV1, RulesetRogueRoomsV1} {
+		first, err := New(Config{
+			GameVersion: GameVersion,
+			Ruleset:     ruleset,
+			PlayerIDs:   []string{"p1", "p2"},
+			RNGSeed:     testSeedAlpha,
+		})
+		if err != nil {
+			t.Fatalf("%s New alpha: %v", ruleset, err)
+		}
+		second, err := New(Config{
+			GameVersion: GameVersion,
+			Ruleset:     ruleset,
+			PlayerIDs:   []string{"p1", "p2"},
+			RNGSeed:     testSeedBeta,
+		})
+		if err != nil {
+			t.Fatalf("%s New beta: %v", ruleset, err)
+		}
+		sameTiles := equalStringSlices(first.Layout().Tiles, second.Layout().Tiles)
+		sameGoal := first.Layout().Goal == second.Layout().Goal
+		sameChests := equalChests(first.Layout().InitialChests, second.Layout().InitialChests)
+		if sameTiles && sameGoal && sameChests {
+			t.Fatalf("%s expected different generated state for different seeds", ruleset)
+		}
 	}
 }
 
 func TestSeededMazeUsesFixedChestScoreSet(t *testing.T) {
-	match, err := New(Config{
-		GameVersion: GameVersion,
-		Ruleset:     RulesetSeededMazeV1,
-		PlayerIDs:   []string{"p1", "p2"},
-		RNGSeed:     testSeedAlpha,
-	})
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	total := 0
-	got := append([]ChestState(nil), match.Layout().InitialChests...)
-	for _, chest := range got {
-		total += chest.Points
-	}
-	if total != 54 {
-		t.Fatalf("total chest points = %d, want 54", total)
-	}
-	expected := map[int]int{24: 1, 18: 1, 12: 1}
-	for _, chest := range got {
-		expected[chest.Points]--
-	}
-	for points, count := range expected {
-		if count != 0 {
-			t.Fatalf("score set mismatch for %d: remaining %d", points, count)
+	for _, ruleset := range []string{RulesetSeededMazeV1, RulesetRogueRoomsV1} {
+		match, err := New(Config{
+			GameVersion: GameVersion,
+			Ruleset:     ruleset,
+			PlayerIDs:   []string{"p1", "p2"},
+			RNGSeed:     testSeedAlpha,
+		})
+		if err != nil {
+			t.Fatalf("%s New: %v", ruleset, err)
+		}
+		total := 0
+		got := append([]ChestState(nil), match.Layout().InitialChests...)
+		for _, chest := range got {
+			total += chest.Points
+		}
+		if total != 54 {
+			t.Fatalf("%s total chest points = %d, want 54", ruleset, total)
+		}
+		expected := map[int]int{24: 1, 18: 1, 12: 1}
+		for _, chest := range got {
+			expected[chest.Points]--
+		}
+		for points, count := range expected {
+			if count != 0 {
+				t.Fatalf("%s score set mismatch for %d: remaining %d", ruleset, points, count)
+			}
 		}
 	}
 }
 
 func TestSeededMazeUsesExpandedTurnBudget(t *testing.T) {
-	match, err := New(Config{
-		GameVersion: GameVersion,
-		Ruleset:     RulesetSeededMazeV1,
-		PlayerIDs:   []string{"p1", "p2"},
-		RNGSeed:     testSeedAlpha,
-	})
+	for _, tc := range []struct {
+		ruleset string
+		turns   int
+	}{
+		{ruleset: RulesetSeededMazeV1, turns: seededMazeMaxTurns},
+		{ruleset: RulesetRogueRoomsV1, turns: rogueRoomsMaxTurns},
+	} {
+		match, err := New(Config{
+			GameVersion: GameVersion,
+			Ruleset:     tc.ruleset,
+			PlayerIDs:   []string{"p1", "p2"},
+			RNGSeed:     testSeedAlpha,
+		})
+		if err != nil {
+			t.Fatalf("%s New: %v", tc.ruleset, err)
+		}
+		if match.Ruleset().MaxTurns != tc.turns {
+			t.Fatalf("%s max turns = %d, want %d", tc.ruleset, match.Ruleset().MaxTurns, tc.turns)
+		}
+		visible, err := match.CurrentVisibleState("p1")
+		if err != nil {
+			t.Fatalf("%s CurrentVisibleState: %v", tc.ruleset, err)
+		}
+		if visible.RemainingTurns != tc.turns {
+			t.Fatalf("%s remaining turns = %d, want %d", tc.ruleset, visible.RemainingTurns, tc.turns)
+		}
+	}
+}
+
+func TestGeneratedRulesetsUseWallBoundedConnectedLayouts(t *testing.T) {
+	for _, ruleset := range []string{RulesetSeededMazeV1, RulesetRogueRoomsV1} {
+		match, err := New(Config{
+			GameVersion: GameVersion,
+			Ruleset:     ruleset,
+			PlayerIDs:   []string{"p1", "p2"},
+			RNGSeed:     testSeedAlpha,
+		})
+		if err != nil {
+			t.Fatalf("%s New: %v", ruleset, err)
+		}
+		layout := match.Layout()
+		assertWallBoundary(t, ruleset, layout.Tiles)
+		assertReachable(t, ruleset, match, layout.SpawnPoints[0], layout.Goal)
+		for _, spawn := range layout.SpawnPoints[1:] {
+			assertReachable(t, ruleset, match, layout.SpawnPoints[0], spawn)
+		}
+		for _, chest := range layout.InitialChests {
+			assertReachable(t, ruleset, match, layout.SpawnPoints[0], Position{X: chest.X, Y: chest.Y})
+		}
+		assertDistinctPlacements(t, ruleset, layout)
+	}
+}
+
+func TestGenerateRogueRoomsLayoutRejectsTooSmallDimensions(t *testing.T) {
+	rng, err := newSeededRand(testSeedAlpha)
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("newSeededRand: %v", err)
 	}
-	if match.Ruleset().MaxTurns != 50 {
-		t.Fatalf("max turns = %d, want 50", match.Ruleset().MaxTurns)
+	if _, err := generateRogueRoomsLayout(rng, 7, 15); err == nil {
+		t.Fatal("expected width validation error")
 	}
-	visible, err := match.CurrentVisibleState("p1")
-	if err != nil {
-		t.Fatalf("CurrentVisibleState: %v", err)
-	}
-	if visible.RemainingTurns != 50 {
-		t.Fatalf("remaining turns = %d, want 50", visible.RemainingTurns)
+	if _, err := generateRogueRoomsLayout(rng, 19, 7); err == nil {
+		t.Fatal("expected height validation error")
 	}
 }
 
@@ -449,5 +503,58 @@ func TestCurrentVisibleStateClampsTerminalTurn(t *testing.T) {
 	}
 	if visible.RemainingTurns != 0 {
 		t.Fatalf("remaining turns = %d, want 0", visible.RemainingTurns)
+	}
+}
+
+func assertWallBoundary(t *testing.T, ruleset string, tiles []string) {
+	t.Helper()
+	if len(tiles) == 0 {
+		t.Fatalf("%s produced empty tile rows", ruleset)
+	}
+	if len(tiles[0]) == 0 {
+		t.Fatalf("%s produced an empty first row", ruleset)
+	}
+	lastRow := len(tiles) - 1
+	lastCol := len(tiles[0]) - 1
+	for y, row := range tiles {
+		if len(row) != lastCol+1 {
+			t.Fatalf("%s produced jagged row %d: got width %d, want %d", ruleset, y, len(row), lastCol+1)
+		}
+	}
+	for x := 0; x <= lastCol; x++ {
+		if tiles[0][x] != '#' || tiles[lastRow][x] != '#' {
+			t.Fatalf("%s has non-wall boundary row", ruleset)
+		}
+	}
+	for y := 0; y <= lastRow; y++ {
+		if tiles[y][0] != '#' || tiles[y][lastCol] != '#' {
+			t.Fatalf("%s has non-wall boundary col", ruleset)
+		}
+	}
+}
+
+func assertReachable(t *testing.T, ruleset string, match *Match, from, to Position) {
+	t.Helper()
+	if path, ok := match.ShortestPath(from, to); !ok || len(path) == 0 {
+		t.Fatalf("%s no path from %+v to %+v", ruleset, from, to)
+	}
+}
+
+func assertDistinctPlacements(t *testing.T, ruleset string, layout GeneratedLayout) {
+	t.Helper()
+	seen := map[string]string{}
+	mark := func(kind string, pos Position) {
+		key := posKey(pos)
+		if prev, ok := seen[key]; ok {
+			t.Fatalf("%s %s overlaps with %s at %+v", ruleset, kind, prev, pos)
+		}
+		seen[key] = kind
+	}
+	mark("goal", layout.Goal)
+	for i, spawn := range layout.SpawnPoints {
+		mark(fmt.Sprintf("spawn_%d", i+1), spawn)
+	}
+	for i, chest := range layout.InitialChests {
+		mark(fmt.Sprintf("chest_%d", i+1), Position{X: chest.X, Y: chest.Y})
 	}
 }

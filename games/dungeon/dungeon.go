@@ -19,7 +19,7 @@ type Match struct {
 
 // SupportedRulesets returns the ruleset identifiers accepted by this package.
 func SupportedRulesets() []string {
-	return []string{RulesetFixedMapV1, RulesetSeededMazeV1}
+	return []string{RulesetFixedMapV1, RulesetSeededMazeV1, RulesetRogueRoomsV1}
 }
 
 // MetadataForSelection resolves metadata plus static rules for one game selection.
@@ -31,7 +31,9 @@ func MetadataForSelection(gameVersion, ruleset string) (Metadata, Ruleset, error
 	case RulesetFixedMapV1:
 		return Metadata{GameID: GameID, GameVersion: GameVersion, RulesetVersion: ruleset}, fixedMapRuleset(), nil
 	case RulesetSeededMazeV1:
-		return Metadata{GameID: GameID, GameVersion: GameVersion, RulesetVersion: ruleset}, seededMazeBaseRuleset(), nil
+		return Metadata{GameID: GameID, GameVersion: GameVersion, RulesetVersion: ruleset}, seededMazeRuleset(), nil
+	case RulesetRogueRoomsV1:
+		return Metadata{GameID: GameID, GameVersion: GameVersion, RulesetVersion: ruleset}, rogueRoomsRuleset(), nil
 	default:
 		return Metadata{}, Ruleset{}, fmt.Errorf("dungeon: unsupported ruleset %q", ruleset)
 	}
@@ -109,12 +111,22 @@ func fixedMapRuleset() Ruleset {
 	}
 }
 
-func seededMazeBaseRuleset() Ruleset {
+func seededMazeRuleset() Ruleset {
 	return Ruleset{
 		MapID:        RulesetSeededMazeV1,
 		MaxTurns:     seededMazeMaxTurns,
 		ViewRadius:   2,
-		GoalBonuses:  append([]int(nil), seededGoalBonuses...),
+		GoalBonuses:  append([]int(nil), generatedGoalBonuses...),
+		TurnDeadline: 100 * time.Millisecond,
+	}
+}
+
+func rogueRoomsRuleset() Ruleset {
+	return Ruleset{
+		MapID:        RulesetRogueRoomsV1,
+		MaxTurns:     rogueRoomsMaxTurns,
+		ViewRadius:   2,
+		GoalBonuses:  append([]int(nil), generatedGoalBonuses...),
 		TurnDeadline: 100 * time.Millisecond,
 	}
 }

@@ -16,6 +16,8 @@ func buildLayout(ruleset, seed string) (GeneratedLayout, error) {
 		return fixedMapLayout(), nil
 	case RulesetSeededMazeV1:
 		return seededMazeLayout(seed)
+	case RulesetRogueRoomsV1:
+		return rogueRoomsLayout(seed)
 	default:
 		return GeneratedLayout{}, fmt.Errorf("dungeon: unsupported ruleset %q", ruleset)
 	}
@@ -45,26 +47,42 @@ func fixedMapLayout() GeneratedLayout {
 }
 
 func seededMazeLayout(seed string) (GeneratedLayout, error) {
-	tiles := generatePerfectMaze9x9(seed)
+	return buildGeneratedLayout(seed, generatePerfectMaze(seed, 15, 15))
+}
+
+func rogueRoomsLayout(seed string) (GeneratedLayout, error) {
+	rng, err := newSeededRand(seed)
+	if err != nil {
+		return GeneratedLayout{}, err
+	}
+	tiles, err := generateRogueRoomsLayout(rng, 19, 15)
+	if err != nil {
+		return GeneratedLayout{}, err
+	}
+	return buildGeneratedLayout(seed, tiles)
+}
+
+func buildGeneratedLayout(seed string, tiles []string) (GeneratedLayout, error) {
 	walkable := walkablePositions(tiles)
 	if len(walkable) < 8 {
-		return GeneratedLayout{}, fmt.Errorf("dungeon: generated maze has insufficient walkable tiles")
+		return GeneratedLayout{}, fmt.Errorf("dungeon: generated layout has insufficient walkable tiles")
 	}
 	rng, err := newSeededRand(seed)
 	if err != nil {
 		return GeneratedLayout{}, err
 	}
-	goal := walkable[rng.IntN(len(walkable))]
+	goalSource := walkable[rng.IntN(len(walkable))]
+	goal := farthestPosition(tiles, goalSource)
 	start := farthestPosition(tiles, goal)
 	spawns, err := nearestUniquePositions(tiles, start, 4, map[string]struct{}{posKey(goal): {}})
 	if err != nil {
 		return GeneratedLayout{}, err
 	}
-	chestPositions, err := selectChestPositions(tiles, walkable, start, goal, spawns, 3, rng)
+	chestPositions, err := selectChestPositions(tiles, walkable, start, goal, spawns, len(generatedChestPoints), rng)
 	if err != nil {
 		return GeneratedLayout{}, err
 	}
-	chestScores := append([]int(nil), seededChestPoints...)
+	chestScores := append([]int(nil), generatedChestPoints...)
 	rng.Shuffle(len(chestScores), func(i, j int) {
 		chestScores[i], chestScores[j] = chestScores[j], chestScores[i]
 	})
@@ -80,19 +98,18 @@ func seededMazeLayout(seed string) (GeneratedLayout, error) {
 	}, nil
 }
 
-func generatePerfectMaze9x9(seed string) []string {
-	const size = 9
-	grid := make([][]byte, size)
+func generatePerfectMaze(seed string, width, height int) []string {
+	grid := make([][]byte, height)
 	for y := range grid {
-		grid[y] = make([]byte, size)
+		grid[y] = make([]byte, width)
 		for x := range grid[y] {
 			grid[y][x] = '#'
 		}
 	}
 	type cell struct{ x, y int }
 	cells := []cell{}
-	for y := 1; y < size; y += 2 {
-		for x := 1; x < size; x += 2 {
+	for y := 1; y < height; y += 2 {
+		for x := 1; x < width; x += 2 {
 			cells = append(cells, cell{x: x, y: y})
 		}
 	}
@@ -114,7 +131,7 @@ func generatePerfectMaze9x9(seed string) []string {
 		advanced := false
 		for _, dir := range order {
 			next := cell{x: current.x + dir.x, y: current.y + dir.y}
-			if next.x <= 0 || next.x >= size-1 || next.y <= 0 || next.y >= size-1 {
+			if next.x <= 0 || next.x >= width-1 || next.y <= 0 || next.y >= height-1 {
 				continue
 			}
 			if _, ok := visited[next]; ok {
@@ -131,11 +148,111 @@ func generatePerfectMaze9x9(seed string) []string {
 			stack = stack[:len(stack)-1]
 		}
 	}
-	rows := make([]string, size)
+	rows := make([]string, height)
 	for i := range grid {
 		rows[i] = string(grid[i])
 	}
 	return rows
+}
+
+type dungeonRoom struct {
+	x int
+	y int
+	w int
+	h int
+}
+
+func (r dungeonRoom) center() Position {
+	return Position{X: r.x + r.w/2, Y: r.y + r.h/2}
+}
+
+func (r dungeonRoom) overlapsWithPadding(other dungeonRoom, padding int) bool {
+	return r.x-padding < other.x+other.w &&
+		r.x+r.w+padding > other.x &&
+		r.y-padding < other.y+other.h &&
+		r.y+r.h+padding > other.y
+}
+
+func generateRogueRoomsLayout(rng *deterministicRand, width, height int) ([]string, error) {
+	if width < 8 || height < 8 {
+		return nil, fmt.Errorf("dungeon: rogue rooms layout requires width and height >= 8, got %dx%d", width, height)
+	}
+	grid := make([][]byte, height)
+	for y := range grid {
+		grid[y] = make([]byte, width)
+		for x := range grid[y] {
+			grid[y][x] = '#'
+		}
+	}
+	rooms := make([]dungeonRoom, 0, 5)
+	for attempts := 0; attempts < 256 && len(rooms) < 5; attempts++ {
+		room := dungeonRoom{
+			x: 1 + rng.IntN(width-7),
+			y: 1 + rng.IntN(height-7),
+			w: 3 + rng.IntN(4),
+			h: 3 + rng.IntN(4),
+		}
+		if room.x+room.w >= width-1 || room.y+room.h >= height-1 {
+			continue
+		}
+		overlaps := false
+		for _, existing := range rooms {
+			if room.overlapsWithPadding(existing, 1) {
+				overlaps = true
+				break
+			}
+		}
+		if overlaps {
+			continue
+		}
+		rooms = append(rooms, room)
+		carveRoom(grid, room)
+	}
+	if len(rooms) < 3 {
+		return nil, fmt.Errorf("dungeon: insufficient rogue rooms generated")
+	}
+	for i := 1; i < len(rooms); i++ {
+		from := rooms[i-1].center()
+		to := rooms[i].center()
+		if rng.IntN(2) == 0 {
+			carveHorizontal(grid, from.X, to.X, from.Y)
+			carveVertical(grid, from.Y, to.Y, to.X)
+		} else {
+			carveVertical(grid, from.Y, to.Y, from.X)
+			carveHorizontal(grid, from.X, to.X, to.Y)
+		}
+	}
+	rows := make([]string, height)
+	for i := range grid {
+		rows[i] = string(grid[i])
+	}
+	return rows, nil
+}
+
+func carveRoom(grid [][]byte, room dungeonRoom) {
+	for y := room.y; y < room.y+room.h; y++ {
+		for x := room.x; x < room.x+room.w; x++ {
+			grid[y][x] = '.'
+		}
+	}
+}
+
+func carveHorizontal(grid [][]byte, fromX, toX, y int) {
+	if fromX > toX {
+		fromX, toX = toX, fromX
+	}
+	for x := fromX; x <= toX; x++ {
+		grid[y][x] = '.'
+	}
+}
+
+func carveVertical(grid [][]byte, fromY, toY, x int) {
+	if fromY > toY {
+		fromY, toY = toY, fromY
+	}
+	for y := fromY; y <= toY; y++ {
+		grid[y][x] = '.'
+	}
 }
 
 func nearestUniquePositions(layout []string, from Position, count int, exclude map[string]struct{}) ([]Position, error) {

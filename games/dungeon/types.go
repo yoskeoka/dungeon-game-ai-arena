@@ -11,6 +11,8 @@ const (
 	RulesetFixedMapV1 = "fixed-map-v1"
 	// RulesetSeededMazeV1 is the seeded maze ruleset used by the generated-map slice.
 	RulesetSeededMazeV1 = "seeded-maze-v1"
+	// RulesetRogueRoomsV1 is the room-and-corridor ruleset used by the generated-map slice.
+	RulesetRogueRoomsV1 = "rogue-rooms-v1"
 	// BuilderIDSubprocess identifies the local subprocess bot builder.
 	BuilderIDSubprocess = "dungeon/local-subprocess"
 	// DefaultRNGSeed is the default deterministic seed used by local helpers.
@@ -26,9 +28,10 @@ const (
 )
 
 var (
-	seededGoalBonuses  = []int{42, 28, 14, 7}
-	seededChestPoints  = []int{24, 18, 12}
-	seededMazeMaxTurns = 50
+	generatedGoalBonuses = []int{42, 28, 14, 7}
+	generatedChestPoints = []int{24, 18, 12}
+	seededMazeMaxTurns   = 120
+	rogueRoomsMaxTurns   = 72
 )
 
 // Metadata identifies one concrete dungeon game selection.
