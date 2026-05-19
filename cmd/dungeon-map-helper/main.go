@@ -7,8 +7,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/yoskeoka/dungeon-game-ai-arena/games/dungeon"
 )
@@ -21,18 +23,54 @@ func main() {
 }
 
 func run(args []string) error {
+	return runWithIO(args, os.Stdout, os.Stderr)
+}
+
+func runWithIO(args []string, stdout, stderr io.Writer) error {
 	var (
-		ruleset = dungeon.RulesetSeededMazeV1
-		rngSeed = dungeon.DefaultRNGSeed
+		rulesets rulesetListFlag
+		rngSeed  = dungeon.DefaultRNGSeed
 	)
 	fs := flag.NewFlagSet("dungeon-map-helper", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	fs.StringVar(&ruleset, "ruleset", ruleset, "dungeon ruleset")
+	fs.SetOutput(stderr)
+	fs.Var(&rulesets, "ruleset", "dungeon ruleset (repeatable or comma-separated)")
 	fs.StringVar(&rngSeed, "rng-seed", rngSeed, "deterministic seed")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if len(rulesets) == 0 {
+		rulesets = append(rulesets, dungeon.RulesetSeededMazeV1)
+	}
 
+	for i, ruleset := range rulesets {
+		if i > 0 {
+			fmt.Fprintln(stdout)
+		}
+		if err := printRulesetSummary(stdout, rngSeed, ruleset); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type rulesetListFlag []string
+
+func (f *rulesetListFlag) String() string {
+	return strings.Join(*f, ",")
+}
+
+func (f *rulesetListFlag) Set(value string) error {
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		*f = append(*f, part)
+	}
+	return nil
+}
+
+func printRulesetSummary(stdout io.Writer, rngSeed, ruleset string) error {
 	world, err := dungeon.New(dungeon.Config{
 		GameVersion: dungeon.GameVersion,
 		Ruleset:     ruleset,
@@ -44,14 +82,35 @@ func run(args []string) error {
 	}
 	layout := world.Layout()
 	rulesetDef := world.Ruleset()
+	height := len(layout.Tiles)
+	width := 0
+	walkable := 0
+	if height > 0 {
+		width = len(layout.Tiles[0])
+	}
+	for _, row := range layout.Tiles {
+		for x := 0; x < len(row); x++ {
+			if row[x] != '#' {
+				walkable++
+			}
+		}
+	}
 
-	fmt.Printf("map_id=%s rng_seed=%s max_turns=%d view_radius=%d goal_bonuses=%v\n",
+	fmt.Fprintf(stdout, "=== ruleset=%s map_id=%s rng_seed=%s ===\n",
+		ruleset,
 		rulesetDef.MapID,
 		world.PublicState().RNGSeed,
+	)
+	fmt.Fprintf(stdout, "shape width=%d height=%d walkable=%d max_turns=%d view_radius=%d goal_bonuses=%v\n",
+		width,
+		height,
+		walkable,
 		rulesetDef.MaxTurns,
 		rulesetDef.ViewRadius,
 		rulesetDef.GoalBonuses,
 	)
+	fmt.Fprintf(stdout, "placements goal=%+v spawns=%v chests=%v\n", layout.Goal, layout.SpawnPoints, layout.InitialChests)
+
 	chestTotal := 0
 	for _, chest := range layout.InitialChests {
 		chestTotal += chest.Points
@@ -78,28 +137,28 @@ func run(args []string) error {
 			majorityChestMin = sum
 		}
 	}
-	fmt.Printf("balance chest_total=%d majority_threshold=%d first_no_chest=%d third_with_min_majority=%d\n",
+	fmt.Fprintf(stdout, "balance chest_total=%d majority_threshold=%d first_no_chest=%d third_with_min_majority=%d\n",
 		chestTotal,
 		majorityFloor,
 		rulesetDef.GoalBonuses[0],
 		thirdPlaceBonus+majorityChestMin,
 	)
 	for _, row := range world.PublicState().Tiles {
-		fmt.Println(row)
+		fmt.Fprintln(stdout, row)
 	}
 	for i, spawn := range world.SpawnPoints()[:2] {
 		path, ok := world.ShortestPath(spawn, layout.Goal)
 		if !ok {
 			return fmt.Errorf("no path from spawn %d to goal", i+1)
 		}
-		fmt.Printf("spawn_%d_to_goal steps=%d route=%v\n", i+1, len(path)-1, path)
+		fmt.Fprintf(stdout, "spawn_%d_to_goal steps=%d route=%v\n", i+1, len(path)-1, path)
 	}
 	for i, chest := range layout.InitialChests {
 		path, ok := world.ShortestPath(world.SpawnPoints()[0], dungeon.Position{X: chest.X, Y: chest.Y})
 		if !ok {
 			return fmt.Errorf("no path from spawn 1 to chest %d", i+1)
 		}
-		fmt.Printf("spawn_1_to_chest_%d points=%d steps=%d route=%v\n", i+1, chest.Points, len(path)-1, path)
+		fmt.Fprintf(stdout, "spawn_1_to_chest_%d points=%d steps=%d route=%v\n", i+1, chest.Points, len(path)-1, path)
 	}
 	return nil
 }
