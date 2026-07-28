@@ -1,7 +1,5 @@
 # 完了済み workflow artifact の保持廃止
 
-> **Execution**: Use `/execute-task` to implement this plan. After implementation is complete, use `/review-task` to prepare and create the PR.
-
 ## 目的
 
 完了済み execution plan と local issue を作業ツリーから削除し、検索対象を active tracker だけにする。完全な計画本文は commit message に複写せず、plan PR・実装 PR・Git 履歴を監査経路にする。
